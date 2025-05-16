@@ -38,14 +38,26 @@
 <script>
 function parseCSV(text) {
   const rows = [];
-  const regex = /(".*?"|[^",\r\n]+)(?=\s*,|\s*$)/g;
+  const regex = /("([^"]|"")*"|[^",\r\n]*)(,|\r?\n|$)/g;
   const lines = text.split(/\r?\n/);
+
   for (let line of lines) {
-    const matches = [...line.matchAll(regex)].map(m => m[1].replace(/^"|"$/g, '').replace(/""/g, '"'));
+    const matches = [];
+    let match;
+    while ((match = regex.exec(line)) !== null) {
+      let field = match[1];
+      if (field.startsWith('"') && field.endsWith('"')) {
+        field = field.slice(1, -1).replace(/""/g, '"');
+      }
+      matches.push(field.trim());
+      if (match[3] === '\n' || match[3] === '') break;
+    }
     if (matches.length > 1) rows.push(matches);
   }
+
   return rows;
 }
+
 
 function createCSV(headers, rows) {
   const escaped = rows.map(r => r.map(f => `"${String(f).replace(/"/g, '""')}"`).join(','));
@@ -105,8 +117,13 @@ document.getElementById('csvFile').addEventListener('change', function () {
       const releaseDate = getField(row, "Release_Date");
       const recordLabel = getField(row, "Record_Label");
 
-      artistList.forEach(artist => artistSet.add(artist));
-      genreList.forEach(genre => genreSet.add(genre));
+      for (const artist of artistList) {
+        if (artist && !artist.includes('|||')) artistSet.add(artist);
+      }
+      
+      for (const genre of genreList) {
+        if (genre && !genre.includes('|||') && !genre.match(/Records?|Label/i)) genreSet.add(genre);
+      }
       albumSet.add(`${albumName}|||${releaseDate}|||${recordLabel}`);
 
       for (const artist of artistList) {
