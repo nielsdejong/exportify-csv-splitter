@@ -123,16 +123,16 @@
 
       const linksDiv = document.getElementById('downloadLinks');
       linksDiv.innerHTML = 'Step 2: Download your split files:';
-      linksDiv.appendChild(downloadCSV('artists.csv', createCSV(["Track_URI", "Name"], artists)));
-      linksDiv.appendChild(downloadCSV('genres.csv', createCSV(["Track_URI", "Genre"], genres)));
-      linksDiv.appendChild(downloadCSV('albums.csv', createCSV(["Track_URI", "Release_Date", "Record_Label", "Name"], albums)));
-      linksDiv.appendChild(downloadCSV('songs.csv', createCSV([
+      linksDiv.appendChild(downloadCSV('song.csv', createCSV([
         "Track_URI", "Track_Name", "Duration_(ms)", "Popularity",
         "Danceability", "Energy", "Key", "Loudness", "Mode",
         "Speechiness", "Acousticness", "Instrumentalness", "Liveness",
         "Valence", "Tempo", "Time_Signature"
       ], songs)));
-
+      linksDiv.appendChild(downloadCSV('song_by_artist.csv', createCSV(["Track_URI", "Name"], artists)));
+      linksDiv.appendChild(downloadCSV('song_has_genre.csv', createCSV(["Track_URI", "Genre"], genres)));
+      linksDiv.appendChild(downloadCSV('song_in_album.csv', createCSV(["Track_URI", "Release_Date", "Record_Label", "Name"], albums)));
+      linksDiv.appendChild('<br/>');
       const link = document.createElement('a');
       link.href = "https://console-preview.neo4j.io/tools/import";
       link.target = "_blank";
