@@ -86,7 +86,10 @@ document.getElementById('csvFile').addEventListener('change', function () {
     const rows = csv.slice(1);
 
     const getIndex = (name) => headers.indexOf(name.replace(/\s+/g, '_'));
-    const getField = (row, name) => row[getIndex(name)];
+    const getField = (row, name) => {
+      const index = headers.indexOf(name.replace(/\s+/g, '_'));
+      return index >= 0 ? row[index] : "";
+    };
 
     const songs = [];
     const artistSet = new Set();
@@ -111,8 +114,9 @@ document.getElementById('csvFile').addEventListener('change', function () {
       const tempo = getField(row, "Tempo");
       const timeSignature = getField(row, "Time_Signature");
 
-      const artistList = getField(row, "Artist_Name(s)").split(',').map(a => a.trim());
-      const genreList = getField(row, "Genres").split(',').map(g => g.trim()).filter(g => g);
+      const artistList = (getField(row, "Artist_Name(s)") || "").split(',').map(a => a.trim());
+      const genreList = (getField(row, "Genres") || "").split(',').map(g => g.trim()).filter(g => g);
+
       const albumName = getField(row, "Album_Name");
       const releaseDate = getField(row, "Release_Date");
       const recordLabel = getField(row, "Record_Label");
