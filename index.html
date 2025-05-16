@@ -35,7 +35,7 @@
   <input type="file" id="csvFile" accept=".csv">
   <div class="downloads" id="downloadLinks"></div>
 
-  <script>
+<script>
 function parseCSV(text) {
   const rows = [];
   const regex = /(".*?"|[^",\r\n]+)(?=\s*,|\s*$)/g;
@@ -76,42 +76,15 @@ document.getElementById('csvFile').addEventListener('change', function () {
     const getIndex = (name) => headers.indexOf(name.replace(/\s+/g, '_'));
     const getField = (row, name) => row[getIndex(name)];
 
-    const artists = [];
-    const genres = [];
-    const songInAlbum = [];
     const songs = [];
-
-    const uniqueAlbums = new Set();
-    const uniqueArtists = new Set();
-    const uniqueGenres = new Set();
+    const artistData = [];
+    const genreData = [];
+    const albumData = [];
 
     for (const row of rows) {
       const trackURI = getField(row, "Track_URI");
 
-      // Artists
-      const artistList = getField(row, "Artist_Name(s)").split(',').map(a => a.trim());
-      artistList.forEach(artist => {
-        artists.push([trackURI, artist]);
-        uniqueArtists.add(artist);
-      });
-
-      // Genres
-      const genreList = getField(row, "Genres").split(',').map(g => g.trim()).filter(g => g);
-      genreList.forEach(genre => {
-        genres.push([trackURI, genre]);
-        uniqueGenres.add(genre);
-      });
-
-      // Albums (split join vs data)
-      const albumName = getField(row, "Album_Name");
-      const releaseDate = getField(row, "Release_Date");
-      const recordLabel = getField(row, "Record_Label");
-
-      songInAlbum.push([trackURI, albumName]);
-      const albumKey = `${albumName}|||${releaseDate}|||${recordLabel}`;
-      uniqueAlbums.add(albumKey);
-
-      // Songs
+      // Song
       songs.push([
         trackURI,
         getField(row, "Track_Name"),
@@ -130,6 +103,26 @@ document.getElementById('csvFile').addEventListener('change', function () {
         getField(row, "Tempo"),
         getField(row, "Time_Signature")
       ]);
+
+      // Artist(s)
+      const artistList = getField(row, "Artist_Name(s)").split(',').map(a => a.trim());
+      artistList.forEach(artist => {
+        artistData.push([trackURI, artist]);
+      });
+
+      // Genre(s)
+      const genreList = getField(row, "Genres").split(',').map(g => g.trim()).filter(g => g);
+      genreList.forEach(genre => {
+        genreData.push([trackURI, genre]);
+      });
+
+      // Album
+      albumData.push([
+        trackURI,
+        getField(row, "Album_Name"),
+        getField(row, "Release_Date"),
+        getField(row, "Record_Label")
+      ]);
     }
 
     const linksDiv = document.getElementById('downloadLinks');
@@ -142,19 +135,17 @@ document.getElementById('csvFile').addEventListener('change', function () {
       "Valence", "Tempo", "Time_Signature"
     ], songs)));
 
-    linksDiv.appendChild(downloadCSV('song_by_artist.csv', createCSV(["Track_URI", "Name"], artists)));
-    linksDiv.appendChild(downloadCSV('artist.csv', createCSV(["Name"], [...uniqueArtists].map(a => [a]))));
+    linksDiv.appendChild(downloadCSV('artist.csv', createCSV(
+      ["trackIdByArtist", "Name"], artistData
+    )));
 
-    linksDiv.appendChild(downloadCSV('song_has_genre.csv', createCSV(["Track_URI", "Genre"], genres)));
-    linksDiv.appendChild(downloadCSV('genre.csv', createCSV(["Genre"], [...uniqueGenres].map(g => [g]))));
+    linksDiv.appendChild(downloadCSV('genre.csv', createCSV(
+      ["trackIdHasGenre", "Genre"], genreData
+    )));
 
-    linksDiv.appendChild(downloadCSV('song_in_album.csv', createCSV(["Track_URI", "Name"], songInAlbum)));
     linksDiv.appendChild(downloadCSV('album.csv', createCSV(
-      ["Name", "Release_Date", "Record_Label"],
-      [...uniqueAlbums].map(key => {
-        const [name, date, label] = key.split('|||');
-        return [name, date, label];
-      })
+      ["trackIdInAlbum", "Album_Name", "Release_Date", "Record_Label"],
+      albumData
     )));
 
     linksDiv.appendChild(document.createElement('br'));
@@ -167,6 +158,7 @@ document.getElementById('csvFile').addEventListener('change', function () {
   reader.readAsText(file);
 });
 </script>
+
 
 
 
