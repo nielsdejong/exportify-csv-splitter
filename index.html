@@ -36,112 +36,138 @@
   <div class="downloads" id="downloadLinks"></div>
 
   <script>
-  function parseCSV(text) {
-    const rows = [];
-    const regex = /(".*?"|[^",\r\n]+)(?=\s*,|\s*$)/g;
-    const lines = text.split(/\r?\n/);
-    for (let line of lines) {
-      const matches = [...line.matchAll(regex)].map(m => m[1].replace(/^"|"$/g, '').replace(/""/g, '"'));
-      if (matches.length > 1) rows.push(matches);
+function parseCSV(text) {
+  const rows = [];
+  const regex = /(".*?"|[^",\r\n]+)(?=\s*,|\s*$)/g;
+  const lines = text.split(/\r?\n/);
+  for (let line of lines) {
+    const matches = [...line.matchAll(regex)].map(m => m[1].replace(/^"|"$/g, '').replace(/""/g, '"'));
+    if (matches.length > 1) rows.push(matches);
+  }
+  return rows;
+}
+
+function createCSV(headers, rows) {
+  const escaped = rows.map(r => r.map(f => `"${String(f).replace(/"/g, '""')}"`).join(','));
+  return [headers.join(','), ...escaped].join('\n');
+}
+
+function downloadCSV(filename, csv) {
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.textContent = `Download ${filename}`;
+  return a;
+}
+
+document.getElementById('csvFile').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const csv = parseCSV(e.target.result);
+    const rawHeaders = csv[0];
+    const headers = rawHeaders.map(h => h.trim().replace(/\s+/g, '_'));
+    const rows = csv.slice(1);
+
+    const getIndex = (name) => headers.indexOf(name.replace(/\s+/g, '_'));
+    const getField = (row, name) => row[getIndex(name)];
+
+    const artists = [];
+    const genres = [];
+    const songInAlbum = [];
+    const songs = [];
+
+    const uniqueAlbums = new Set();
+    const uniqueArtists = new Set();
+    const uniqueGenres = new Set();
+
+    for (const row of rows) {
+      const trackURI = getField(row, "Track_URI");
+
+      // Artists
+      const artistList = getField(row, "Artist_Name(s)").split(',').map(a => a.trim());
+      artistList.forEach(artist => {
+        artists.push([trackURI, artist]);
+        uniqueArtists.add(artist);
+      });
+
+      // Genres
+      const genreList = getField(row, "Genres").split(',').map(g => g.trim()).filter(g => g);
+      genreList.forEach(genre => {
+        genres.push([trackURI, genre]);
+        uniqueGenres.add(genre);
+      });
+
+      // Albums (split join vs data)
+      const albumName = getField(row, "Album_Name");
+      const releaseDate = getField(row, "Release_Date");
+      const recordLabel = getField(row, "Record_Label");
+
+      songInAlbum.push([trackURI, albumName]);
+      const albumKey = `${albumName}|||${releaseDate}|||${recordLabel}`;
+      uniqueAlbums.add(albumKey);
+
+      // Songs
+      songs.push([
+        trackURI,
+        getField(row, "Track_Name"),
+        getField(row, "Duration_(ms)"),
+        getField(row, "Popularity"),
+        getField(row, "Danceability"),
+        getField(row, "Energy"),
+        getField(row, "Key"),
+        getField(row, "Loudness"),
+        getField(row, "Mode"),
+        getField(row, "Speechiness"),
+        getField(row, "Acousticness"),
+        getField(row, "Instrumentalness"),
+        getField(row, "Liveness"),
+        getField(row, "Valence"),
+        getField(row, "Tempo"),
+        getField(row, "Time_Signature")
+      ]);
     }
-    return rows;
-  }
 
-  function createCSV(headers, rows) {
-    const escaped = rows.map(r => r.map(f => `"${String(f).replace(/"/g, '""')}"`).join(','));
-    return [headers.join(','), ...escaped].join('\n');
-  }
+    const linksDiv = document.getElementById('downloadLinks');
+    linksDiv.innerHTML = 'Step 2: Download your split files:';
 
-  function downloadCSV(filename, csv) {
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.textContent = `Download ${filename}`;
-    return a;
-  }
+    linksDiv.appendChild(downloadCSV('song.csv', createCSV([
+      "Track_URI", "Track_Name", "Duration_(ms)", "Popularity",
+      "Danceability", "Energy", "Key", "Loudness", "Mode",
+      "Speechiness", "Acousticness", "Instrumentalness", "Liveness",
+      "Valence", "Tempo", "Time_Signature"
+    ], songs)));
 
-  document.getElementById('csvFile').addEventListener('change', function () {
-    const file = this.files[0];
-    if (!file) return;
+    linksDiv.appendChild(downloadCSV('song_by_artist.csv', createCSV(["Track_URI", "Name"], artists)));
+    linksDiv.appendChild(downloadCSV('artist.csv', createCSV(["Name"], [...uniqueArtists].map(a => [a]))));
 
-    const reader = new FileReader();
-    reader.onload = function (e) {
-      const csv = parseCSV(e.target.result);
-      const rawHeaders = csv[0];
-      const headers = rawHeaders.map(h => h.trim().replace(/\s+/g, '_'));
-      const rows = csv.slice(1);
+    linksDiv.appendChild(downloadCSV('song_has_genre.csv', createCSV(["Track_URI", "Genre"], genres)));
+    linksDiv.appendChild(downloadCSV('genre.csv', createCSV(["Genre"], [...uniqueGenres].map(g => [g]))));
 
-      const getIndex = (name) => headers.indexOf(name.replace(/\s+/g, '_'));
-      const getField = (row, name) => row[getIndex(name)];
+    linksDiv.appendChild(downloadCSV('song_in_album.csv', createCSV(["Track_URI", "Name"], songInAlbum)));
+    linksDiv.appendChild(downloadCSV('album.csv', createCSV(
+      ["Name", "Release_Date", "Record_Label"],
+      [...uniqueAlbums].map(key => {
+        const [name, date, label] = key.split('|||');
+        return [name, date, label];
+      })
+    )));
 
-      const artists = [];
-      const genres = [];
-      const albums = [];
-      const songs = [];
-
-      for (const row of rows) {
-        const trackURI = getField(row, "Track_URI");
-
-        // Artists
-        const artistList = getField(row, "Artist_Name(s)").split(',').map(a => a.trim());
-        artistList.forEach(artist => artists.push([trackURI, artist]));
-
-        // Genres
-        const genreList = getField(row, "Genres").split(',').map(g => g.trim()).filter(g => g);
-        genreList.forEach(genre => genres.push([trackURI, genre]));
-
-        // Albums
-        albums.push([
-          trackURI,
-          getField(row, "Release_Date"),
-          getField(row, "Record_Label"),
-          getField(row, "Album_Name")
-        ]);
-
-        // Songs
-        songs.push([
-          trackURI,
-          getField(row, "Track_Name"),
-          getField(row, "Duration_(ms)"),
-          getField(row, "Popularity"),
-          getField(row, "Danceability"),
-          getField(row, "Energy"),
-          getField(row, "Key"),
-          getField(row, "Loudness"),
-          getField(row, "Mode"),
-          getField(row, "Speechiness"),
-          getField(row, "Acousticness"),
-          getField(row, "Instrumentalness"),
-          getField(row, "Liveness"),
-          getField(row, "Valence"),
-          getField(row, "Tempo"),
-          getField(row, "Time_Signature")
-        ]);
-      }
-
-      const linksDiv = document.getElementById('downloadLinks');
-      linksDiv.innerHTML = 'Step 2: Download your split files:';
-      linksDiv.appendChild(downloadCSV('song.csv', createCSV([
-        "Track_URI", "Track_Name", "Duration_(ms)", "Popularity",
-        "Danceability", "Energy", "Key", "Loudness", "Mode",
-        "Speechiness", "Acousticness", "Instrumentalness", "Liveness",
-        "Valence", "Tempo", "Time_Signature"
-      ], songs)));
-      linksDiv.appendChild(downloadCSV('song_by_artist.csv', createCSV(["Track_URI", "Name"], artists)));
-      linksDiv.appendChild(downloadCSV('song_has_genre.csv', createCSV(["Track_URI", "Genre"], genres)));
-      linksDiv.appendChild(downloadCSV('song_in_album.csv', createCSV(["Track_URI", "Release_Date", "Record_Label", "Name"], albums)));
-      linksDiv.appendChild('<br/>');
-      const link = document.createElement('a');
-      link.href = "https://console-preview.neo4j.io/tools/import";
-      link.target = "_blank";
-      link.textContent = "Visit the Neo4j Data Importer";
-      linksDiv.appendChild(link);
-    };
-    reader.readAsText(file);
-  });
+    linksDiv.appendChild(document.createElement('br'));
+    const link = document.createElement('a');
+    link.href = "https://console-preview.neo4j.io/tools/import";
+    link.target = "_blank";
+    link.textContent = "Visit the Neo4j Data Importer";
+    linksDiv.appendChild(link);
+  };
+  reader.readAsText(file);
+});
 </script>
+
 
 
   <hl/>
