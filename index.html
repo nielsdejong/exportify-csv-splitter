@@ -38,24 +38,53 @@
 <script>
 function parseCSV(text) {
   const rows = [];
-  const regex = /("([^"]|"")*"|[^",\r\n]*)(,|\r?\n|$)/g;
-  const lines = text.split(/\r?\n/);
-
-  for (let line of lines) {
-    const matches = [];
-    let match;
-    while ((match = regex.exec(line)) !== null) {
-      let field = match[1];
-      if (field.startsWith('"') && field.endsWith('"')) {
-        field = field.slice(1, -1).replace(/""/g, '"');
+  let current = '';
+  let insideQuotes = false;
+  let row = [];
+  
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+    
+    if (char === '"') {
+      if (insideQuotes && nextChar === '"') {
+        // Escaped quote inside quoted field
+        current += '"';
+        i++; // skip next quote
+      } else {
+        // Toggle insideQuotes state
+        insideQuotes = !insideQuotes;
       }
-      matches.push(field.trim());
-      if (match[3] === '\n' || match[3] === '') break;
+    } else if (char === ',' && !insideQuotes) {
+      // Field separator outside quotes
+      row.push(current);
+      current = '';
+    } else if ((char === '\n' || char === '\r') && !insideQuotes) {
+      // End of row outside quotes
+      if (char === '\r' && nextChar === '\n') i++; // Handle \r\n
+      row.push(current);
+      rows.push(row);
+      row = [];
+      current = '';
+    } else {
+      current += char;
     }
-    if (matches.length > 1) rows.push(matches);
   }
-
-  return rows;
+  
+  // Push last value if any
+  if (current.length > 0 || row.length > 0) {
+    row.push(current);
+    rows.push(row);
+  }
+  
+  // Trim quotes and unescape doubled quotes in fields
+  return rows.map(r => r.map(f => {
+    f = f.trim();
+    if (f.startsWith('"') && f.endsWith('"')) {
+      f = f.slice(1, -1).replace(/""/g, '"');
+    }
+    return f;
+  }));
 }
 
 
