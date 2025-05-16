@@ -137,7 +137,11 @@ document.getElementById('csvFile').addEventListener('change', function () {
     )));
 
     linksDiv.appendChild(document.createElement('br'));
-    linksDiv.appendChild('<p>Step 3:</p>');
+    
+    const step3Text = document.createElement('p');
+    step3Text.textContent = 'Step 3:';
+    linksDiv.appendChild(step3Text);
+
     const link = document.createElement('a');
     link.href = "https://console-preview.neo4j.io/tools/import";
     link.target = "_blank";
