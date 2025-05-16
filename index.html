@@ -136,15 +136,15 @@ document.getElementById('csvFile').addEventListener('change', function () {
     ], songs)));
 
     linksDiv.appendChild(downloadCSV('artist.csv', createCSV(
-      ["trackIdByArtist", "Name"], artistData
+      ["trackId", "Name"], artistData
     )));
 
     linksDiv.appendChild(downloadCSV('genre.csv', createCSV(
-      ["trackIdHasGenre", "Genre"], genreData
+      ["trackId", "Genre"], genreData
     )));
 
     linksDiv.appendChild(downloadCSV('album.csv', createCSV(
-      ["trackIdInAlbum", "Album_Name", "Release_Date", "Record_Label"],
+      ["trackId", "Album_Name", "Release_Date", "Record_Label"],
       albumData
     )));
 
