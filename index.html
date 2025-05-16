@@ -30,7 +30,7 @@
   </style>
 </head>
 <body>
-  <h1>Upload and Split Spotify CSV</h1>
+  <h1>Split Exportify CSV for Neo4j Import</h1>
   <p>Step 1: Visit <a target="_blank" href="https://exportify.net/">Exportify</a> to export your songs. Next, upload your <code>liked_songs.csv</code> (or other playlist) here:</p>
   <input type="file" id="csvFile" accept=".csv">
   <div class="downloads" id="downloadLinks"></div>
@@ -140,7 +140,7 @@ document.getElementById('csvFile').addEventListener('change', function () {
     const link = document.createElement('a');
     link.href = "https://console-preview.neo4j.io/tools/import";
     link.target = "_blank";
-    link.textContent = "Visit the Neo4j Data Importer";
+    link.textContent = "Visit the Neo4j Data Importer to Import CSV";
     linksDiv.appendChild(link);
   };
   reader.readAsText(file);
