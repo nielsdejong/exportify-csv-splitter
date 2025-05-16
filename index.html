@@ -31,6 +31,7 @@
 </head>
 <body>
   <h1>Upload and Split Spotify CSV</h1>
+  <p>Visit <a href="https://exportify.net/">Exportify to export your songs. Next, upload your liked-songs.csv (or other playlist) here:</p>
   <input type="file" id="csvFile" accept=".csv">
   <div class="downloads" id="downloadLinks"></div>
 
@@ -120,7 +121,7 @@
         }
 
         const linksDiv = document.getElementById('downloadLinks');
-        linksDiv.innerHTML = '';
+        linksDiv.innerHTML = '<p>Download your files for the <a href="https://console-preview.neo4j.io/tools/import">Neo4j Data Importer</a>:</p>';
         linksDiv.appendChild(downloadCSV('artists.csv', createCSV(["Track URI", "Artist Name"], artists)));
         linksDiv.appendChild(downloadCSV('genres.csv', createCSV(["Track URI", "Genre"], genres)));
         linksDiv.appendChild(downloadCSV('albums.csv', createCSV(["Track URI", "Release Date", "Record Label", "Album Name"], albums)));
