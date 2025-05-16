@@ -36,32 +36,102 @@
   <div class="downloads" id="downloadLinks"></div>
 
 <script>
+document.getElementById('csvFileInput').addEventListener('change', function (e) {
+  const file = e.target.files[0];
+  const reader = new FileReader();
+
+  reader.onload = function (e) {
+    const text = e.target.result;
+    const csv = parseCSV(text);
+    const headers = csv[0].map(h => h.trim().replace(/\s+/g, '_'));
+    const rows = csv.slice(1);
+
+    const getField = (row, name) => {
+      const idx = headers.indexOf(name.replace(/\s+/g, '_'));
+      return idx >= 0 && row[idx] !== undefined ? row[idx] : '';
+    };
+
+    const artistMap = new Map();
+    const albumMap = new Map();
+    const genreMap = new Map();
+
+    rows.forEach(row => {
+      const artistStr = getField(row, "Artist_Name(s)");
+      const albumName = getField(row, "Album_Name");
+      const releaseDate = getField(row, "Release_Date");
+      const recordLabel = getField(row, "Record_Label");
+      const genresStr = getField(row, "Genres");
+
+      const artists = artistStr ? artistStr.split(',').map(a => a.trim()) : [];
+      const genres = genresStr ? genresStr.split(',').map(g => g.trim()) : [];
+
+      artists.forEach(artist => {
+        if (artist) artistMap.set(artist, true);
+      });
+
+      if (albumName) {
+        const key = albumName;
+        if (!albumMap.has(key)) {
+          albumMap.set(key, {
+            name: albumName,
+            releaseDate: releaseDate || '',
+            recordLabel: recordLabel || ''
+          });
+        }
+      }
+
+      genres.forEach(genre => {
+        if (genre) genreMap.set(genre, true);
+      });
+    });
+
+    // Display results
+    const artistOutput = document.getElementById('artistOutput');
+    const albumOutput = document.getElementById('albumOutput');
+    const genreOutput = document.getElementById('genreOutput');
+
+    artistOutput.innerHTML = '<tr><th>Name</th></tr>' +
+      Array.from(artistMap.keys())
+        .map(name => `<tr><td>${name}</td></tr>`)
+        .join('');
+
+    albumOutput.innerHTML = '<tr><th>Album_Name</th><th>Release_Date</th><th>Record_Label</th></tr>' +
+      Array.from(albumMap.values())
+        .map(album => `<tr><td>${album.name}</td><td>${album.releaseDate}</td><td>${album.recordLabel}</td></tr>`)
+        .join('');
+
+    genreOutput.innerHTML = '<tr><th>Genre</th></tr>' +
+      Array.from(genreMap.keys())
+        .map(genre => `<tr><td>${genre}</td></tr>`)
+        .join('');
+  };
+
+  reader.readAsText(file);
+});
+
+// CSV parser that handles quoted fields, commas, and escaped quotes
 function parseCSV(text) {
   const rows = [];
   let current = '';
   let insideQuotes = false;
   let row = [];
-  
+
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
     const nextChar = text[i + 1];
-    
+
     if (char === '"') {
       if (insideQuotes && nextChar === '"') {
-        // Escaped quote inside quoted field
         current += '"';
-        i++; // skip next quote
+        i++;
       } else {
-        // Toggle insideQuotes state
         insideQuotes = !insideQuotes;
       }
     } else if (char === ',' && !insideQuotes) {
-      // Field separator outside quotes
       row.push(current);
       current = '';
     } else if ((char === '\n' || char === '\r') && !insideQuotes) {
-      // End of row outside quotes
-      if (char === '\r' && nextChar === '\n') i++; // Handle \r\n
+      if (char === '\r' && nextChar === '\n') i++;
       row.push(current);
       rows.push(row);
       row = [];
@@ -70,14 +140,12 @@ function parseCSV(text) {
       current += char;
     }
   }
-  
-  // Push last value if any
+
   if (current.length > 0 || row.length > 0) {
     row.push(current);
     rows.push(row);
   }
-  
-  // Trim quotes and unescape doubled quotes in fields
+
   return rows.map(r => r.map(f => {
     f = f.trim();
     if (f.startsWith('"') && f.endsWith('"')) {
@@ -86,121 +154,8 @@ function parseCSV(text) {
     return f;
   }));
 }
-
-
-function createCSV(headers, rows) {
-  const escaped = rows.map(r => r.map(f => `"${String(f).replace(/"/g, '""')}"`).join(','));
-  return [headers.join(','), ...escaped].join('\n');
-}
-
-function downloadCSV(filename, csv) {
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.textContent = `Download ${filename}`;
-  return a;
-}
-
-document.getElementById('csvFile').addEventListener('change', function () {
-  const file = this.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = function (e) {
-    const csv = parseCSV(e.target.result);
-    const rawHeaders = csv[0];
-    const headers = rawHeaders.map(h => h.trim().replace(/\s+/g, '_'));
-    const rows = csv.slice(1);
-
-    const getIndex = (name) => headers.indexOf(name.replace(/\s+/g, '_'));
-    const getField = (row, name) => {
-      const index = headers.indexOf(name.replace(/\s+/g, '_'));
-      return index >= 0 ? row[index] : "";
-    };
-
-    const songs = [];
-    const artistSet = new Set();
-    const genreSet = new Set();
-    const albumSet = new Set();
-
-    for (const row of rows) {
-      const trackURI = getField(row, "Track_URI");
-      const trackName = getField(row, "Track_Name");
-      const duration = getField(row, "Duration_(ms)");
-      const popularity = getField(row, "Popularity");
-      const danceability = getField(row, "Danceability");
-      const energy = getField(row, "Energy");
-      const key = getField(row, "Key");
-      const loudness = getField(row, "Loudness");
-      const mode = getField(row, "Mode");
-      const speechiness = getField(row, "Speechiness");
-      const acousticness = getField(row, "Acousticness");
-      const instrumentalness = getField(row, "Instrumentalness");
-      const liveness = getField(row, "Liveness");
-      const valence = getField(row, "Valence");
-      const tempo = getField(row, "Tempo");
-      const timeSignature = getField(row, "Time_Signature");
-
-      const artistList = (getField(row, "Artist_Name(s)") || "").split(',').map(a => a.trim());
-      const genreList = (getField(row, "Genres") || "").split(',').map(g => g.trim()).filter(g => g);
-
-      const albumName = getField(row, "Album_Name");
-      const releaseDate = getField(row, "Release_Date");
-      const recordLabel = getField(row, "Record_Label");
-
-      for (const artist of artistList) {
-        if (artist && !artist.includes('|||')) artistSet.add(artist);
-      }
-      
-      for (const genre of genreList) {
-        if (genre && !genre.includes('|||') && !genre.match(/Records?|Label/i)) genreSet.add(genre);
-      }
-      albumSet.add(`${albumName}|||${releaseDate}|||${recordLabel}`);
-
-      for (const artist of artistList) {
-        for (const genre of genreList) {
-          songs.push([
-            trackURI, trackName, duration, popularity, danceability, energy, key, loudness, mode,
-            speechiness, acousticness, instrumentalness, liveness, valence, tempo, timeSignature,
-            artist, genre, albumName
-          ]);
-        }
-      }
-    }
-
-    const linksDiv = document.getElementById('downloadLinks');
-    linksDiv.innerHTML = 'Step 2: Download your split files:';
-
-    linksDiv.appendChild(downloadCSV('song.csv', createCSV([
-      "Track_URI", "Track_Name", "Duration_(ms)", "Popularity", "Danceability", "Energy", "Key",
-      "Loudness", "Mode", "Speechiness", "Acousticness", "Instrumentalness", "Liveness",
-      "Valence", "Tempo", "Time_Signature", "Artist_Name", "Genre", "Album_Name"
-    ], songs)));
-
-    linksDiv.appendChild(downloadCSV('artist.csv', createCSV(["Name"], [...artistSet].map(a => [a]))));
-    linksDiv.appendChild(downloadCSV('genre.csv', createCSV(["Genre"], [...genreSet].map(g => [g]))));
-    linksDiv.appendChild(downloadCSV('album.csv', createCSV(
-      ["Album_Name", "Release_Date", "Record_Label"],
-      [...albumSet].map(key => key.split('|||'))
-    )));
-
-    linksDiv.appendChild(document.createElement('br'));
-    
-    const step3Text = document.createElement('p');
-    step3Text.textContent = 'Step 3: Visit the Neo4j Console to Import CSV files:';
-    linksDiv.appendChild(step3Text);
-
-    const link = document.createElement('a');
-    link.href = "https://console-preview.neo4j.io/tools/import";
-    link.target = "_blank";
-    link.textContent = "Neo4j Data Importer";
-    linksDiv.appendChild(link);
-  };
-  reader.readAsText(file);
-});
 </script>
+
 
 
 
