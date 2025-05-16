@@ -121,7 +121,7 @@
         }
 
         const linksDiv = document.getElementById('downloadLinks');
-        linksDiv.innerHTML = 'Step 2: Download your files for the <a target="_blank" href="https://console-preview.neo4j.io/tools/import">Neo4j Data Importer</a>:';
+        linksDiv.innerHTML = 'Step 2: Download your split files:';
         linksDiv.appendChild(downloadCSV('artists.csv', createCSV(["Track URI", "Artist Name"], artists)));
         linksDiv.appendChild(downloadCSV('genres.csv', createCSV(["Track URI", "Genre"], genres)));
         linksDiv.appendChild(downloadCSV('albums.csv', createCSV(["Track URI", "Release Date", "Record Label", "Album Name"], albums)));
@@ -131,6 +131,7 @@
           "Speechiness", "Acousticness", "Instrumentalness", "Liveness",
           "Valence", "Tempo", "Time Signature"
         ], songs)));
+         linksDiv.appendChild('<a target="_blank" href="https://console-preview.neo4j.io/tools/import">Visit the Neo4j Data Importer</a>');
       };
       reader.readAsText(file);
     });
@@ -138,6 +139,6 @@
 
   <hl/>
   <br/><br/>
-  <i>Your data is never uploaded anywhere, CSV splitting is done locally in your browser. Source code can be found on <a target="_blank" href='https://github.com/nielsdejong/exportify-csv-splitter'>Github</a>.</i>
+  <i>This page uses client-side JavaScript to split your CSV file. Data is never uploaded to a server. Source code can be found on <a target="_blank" href='https://github.com/nielsdejong/exportify-csv-splitter'>Github</a>.</i>
 </body>
 </html>
