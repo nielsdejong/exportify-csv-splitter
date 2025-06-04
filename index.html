@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Spotify CSV Splitter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2em;
+      background: #f9f9f9;
+      color: #333;
+    }
+    h1 {
+      font-size: 1.5em;
+    }
+    input[type="file"] {
+      margin: 1em 0;
+    }
+    button {
+      margin-top: 1em;
+      padding: 0.5em 1em;
+      cursor: pointer;
+    }
+    .downloads a {
+      display: block;
+      margin: 0.5em 0;
+      text-decoration: none;
+      color: #007acc;
+    }
+  </style>
+</head>
+<body>
+  <h1>Split Exportify CSV for Neo4j Import</h1>
+  <p><strong>Step 1: Visit <a target="_blank" href="https://exportify.net/">Exportify</a> to export your songs. Next, upload your <code>liked_songs.csv</code> (or other playlist) here:</strong></p>
+  <input type="file" id="csvFile" accept=".csv">
+  <div class="downloads" id="downloadLinks"></div>
+
+<script>
+function parseCSV(text) {
+  const rows = [];
+  // Regex to handle quoted fields (including escaped quotes) and unquoted fields.
+  // It captures the field content and the delimiter (comma or EOL/EOF).
+  const regex = /("([^"]|"")*"|[^",\r\n]*)(,|\r?\n|$)/g;
+  const lines = text.split(/\r?\n/);
+
+  for (const line of lines) {
+    // Skip completely blank lines
+    if (line.trim() === '') {
+      continue;
+    }
+
+    const currentFields = [];
+    regex.lastIndex = 0; // Reset regex state for each new line
+    let match;
+
+    while ((match = regex.exec(line)) !== null) {
+      let field = match[1]; // The captured field
+
+      // If the field was quoted, unquote it and handle escaped double quotes
+      if (field.startsWith('"') && field.endsWith('"')) {
+        field = field.slice(1, -1).replace(/""/g, '"');
+      }
+      currentFields.push(field.trim()); // Trim whitespace from the final field value
+
+      // If the delimiter was an end-of-line indicator or end-of-string,
+      // we've processed all fields on this line.
+      if (match[3] === '\n' || match[3] === '\r' || match[3] === '') { // match[3] is delimiter: , \n \r or "" (for $)
+        break;
+      }
+    }
+    rows.push(currentFields);
+  }
+  return rows;
+}
+
+function createCSV(headers, dataRows) { // Renamed 'rows' to 'dataRows' for clarity
+  const escapedRows = dataRows.map(r => r.map(f => `"${String(f).replace(/"/g, '""')}"`).join(','));
+  return [headers.join(','), ...escapedRows].join('\n');
+}
+
+function downloadCSV(filename, csvContent) { // Renamed 'csv' to 'csvContent'
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.textContent = `Download ${filename}`;
+  return a;
+}
+
+document.getElementById('csvFile').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const linksDiv = document.getElementById('downloadLinks');
+    linksDiv.innerHTML = ''; // Clear previous results/errors
+
+    const text = e.target.result;
+    if (!text || text.trim() === "") {
+      linksDiv.innerHTML = 'Error: The uploaded CSV file is empty or contains only whitespace.';
+      return;
+    }
+
+    const parsedCsvData = parseCSV(text);
+
+    if (!parsedCsvData || parsedCsvData.length === 0) {
+      linksDiv.innerHTML = 'Error: No data could be parsed from the CSV file. It might be empty or malformed (e.g., only blank lines).';
+      return;
+    }
+
+    const rawHeaders = parsedCsvData[0];
+    if (!rawHeaders || rawHeaders.length === 0) {
+        linksDiv.innerHTML = 'Error: CSV headers are missing or empty.';
+        return;
+    }
+
+    const headers = rawHeaders.map(h => String(h).trim().replace(/\s+/g, '_'));
+    const dataRows = parsedCsvData.slice(1);
+
+    const getIndex = (name) => headers.indexOf(name); // Assumes 'name' is already in the correct format (e.g., "Track_URI")
+
+    // Robust getField function with defaultValue
+    const getField = (row, headerName, defaultValue = "") => {
+      const colName = headerName.replace(/\s+/g, '_'); // Ensure we look up by processed header name
+      const index = getIndex(colName);
+      if (index === -1 || index >= row.length) { // Header not found or row is too short
+        return defaultValue;
+      }
+      const value = row[index];
+      return (value === undefined || value === null) ? defaultValue : String(value); // Ensure string conversion for safety
+    };
+
+    const songs = [];
+    const artistSet = new Set();
+    const genreSet = new Set();
+    const albumSet = new Set();
+
+    for (const row of dataRows) {
+      const trackURI = getField(row, "Track_URI");
+      const trackName = getField(row, "Track_Name");
+      const duration = getField(row, "Duration_(ms)");
+      const popularity = getField(row, "Popularity");
+      const danceability = getField(row, "Danceability");
+      const energy = getField(row, "Energy");
+      const key = getField(row, "Key");
+      const loudness = getField(row, "Loudness");
+      const mode = getField(row, "Mode");
+      const speechiness = getField(row, "Speechiness");
+      const acousticness = getField(row, "Acousticness");
+      const instrumentalness = getField(row, "Instrumentalness");
+      const liveness = getField(row, "Liveness");
+      const valence = getField(row, "Valence");
+      const tempo = getField(row, "Tempo");
+      const timeSignature = getField(row, "Time_Signature");
+
+      const artistNamesString = getField(row, "Artist_Name(s)");
+      const genreNamesString = getField(row, "Genres");
+      const albumName = getField(row, "Album_Name");
+      const releaseDate = getField(row, "Release_Date");
+      const recordLabel = getField(row, "Record_Label");
+
+      // Split and filter artist and genre lists
+      const artistList = artistNamesString.split(',').map(a => a.trim()).filter(a => a); // Removes empty strings
+      const genreList = genreNamesString.split(',').map(g => g.trim()).filter(g => g); // Removes empty strings
+
+      for (const artist of artistList) {
+        if (!artist.includes('|||')) artistSet.add(artist);
+      }
+      
+      for (const genre of genreList) {
+        if (!genre.includes('|||') && !genre.match(/Records?|Label/i)) genreSet.add(genre);
+      }
+      albumSet.add(`${albumName}|||${releaseDate}|||${recordLabel}`);
+
+      // Create song entries, ensuring songs are added even if genres are missing
+      if (artistList.length > 0) {
+        if (genreList.length > 0) {
+          for (const artist of artistList) {
+            for (const genre of genreList) {
+              songs.push([
+                trackURI, trackName, duration, popularity, danceability, energy, key, loudness, mode,
+                speechiness, acousticness, instrumentalness, liveness, valence, tempo, timeSignature,
+                artist, genre, albumName
+              ]);
+            }
+          }
+        } else { // No genres, but has artists
+          for (const artist of artistList) {
+            songs.push([
+              trackURI, trackName, duration, popularity, danceability, energy, key, loudness, mode,
+              speechiness, acousticness, instrumentalness, liveness, valence, tempo, timeSignature,
+              artist, "", albumName // Use empty string for genre
+            ]);
+          }
+        }
+      } else if (trackURI) { // If no artists, but track URI exists, maybe add song with empty artist/genre?
+          // This case depends on requirements. Current logic implies song needs at least one artist.
+          // To add songs even without artists (if they have a URI):
+          // songs.push([
+          //   trackURI, trackName, duration, popularity, danceability, energy, key, loudness, mode,
+          //   speechiness, acousticness, instrumentalness, liveness, valence, tempo, timeSignature,
+          //   "", genreList.length > 0 ? genreList.join('; ') : "", albumName // Example: empty artist, join genres or empty
+          // ]);
+      }
+    }
+
+    linksDiv.innerHTML = '<strong>Step 2: Download your split files:</strong>';
+
+    linksDiv.appendChild(downloadCSV('songs.csv', createCSV([
+      "Track_URI", "Track_Name", "Duration_(ms)", "Popularity", "Danceability", "Energy", "Key",
+      "Loudness", "Mode", "Speechiness", "Acousticness", "Instrumentalness", "Liveness",
+      "Valence", "Tempo", "Time_Signature", "Artist_Name", "Genre", "Album_Name"
+    ], songs)));
+
+    linksDiv.appendChild(downloadCSV('artists.csv', createCSV(["Name"], [...artistSet].map(a => [a]))));
+    linksDiv.appendChild(downloadCSV('genres.csv', createCSV(["Genre"], [...genreSet].map(g => [g]))));
+    linksDiv.appendChild(downloadCSV('albums.csv', createCSV(
+      ["Album_Name", "Release_Date", "Record_Label"],
+      [...albumSet].map(key => key.split('|||'))
+    )));
+
+    linksDiv.appendChild(document.createElement('br'));
+    
+    const step3Text = document.createElement('p');
+    step3Text.innerHTML = '<strong>Step 3: Visit the Neo4j Console to Import CSV files:</strong>'; // Use innerHTML for bold
+    linksDiv.appendChild(step3Text);
+
+    const link = document.createElement('a');
+    link.href = "https://console-preview.neo4j.io/tools/import";
+    link.target = "_blank";
+    link.textContent = "Neo4j Data Importer";
+    linksDiv.appendChild(link);
+  };
+  reader.readAsText(file);
+});
+</script>
+
+  <hr/>
+  <br/><br/>
+  <i>This page uses client-side JavaScript to split your CSV file. Data is never uploaded to a server. Source code can be found on <a target="_blank" href='https://github.com/nielsdejong/exportify-csv-splitter'>Github</a>.</i>
+</body>
+</html>
